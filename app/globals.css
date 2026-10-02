@@ -1979,7 +1979,7 @@ a.contact-detail-card:hover { border-color: #c7dba3; transform: translateX(2px);
 
 /* Alternate homepage concept: high-contrast campaign layout inspired by the supplied poster */
 .home2-hero { min-height: 720px; position: relative; overflow: hidden; color: #fff; background: #030507; isolation: isolate; }
-.home2-hero-photo { position: absolute; z-index: 0; inset: 0; background: url('/images/home-2-user-hero.png') center 18% / cover no-repeat; }
+.home2-hero-photo { position: absolute; z-index: 0; inset: 0; background: url('/images/home-2-user-hero.png') right center / auto 100% no-repeat; }
 .home2-hero-shade { position: absolute; z-index: 1; inset: 0; background: linear-gradient(90deg,#030507 0%,rgba(3,5,8,.98) 30%,rgba(3,5,8,.83) 44%,rgba(3,5,8,.2) 68%,rgba(3,5,8,.08) 100%),linear-gradient(0deg,rgba(2,4,7,.82) 0%,transparent 43%); }
 .home2-hero-grid { position: absolute; z-index: 1; inset: 0; opacity: .14; background-image: linear-gradient(rgba(102,151,201,.17) 1px,transparent 1px),linear-gradient(90deg,rgba(102,151,201,.17) 1px,transparent 1px); background-size: 75px 75px; mask-image: linear-gradient(90deg,#000 0%,transparent 60%); pointer-events: none; }
 .home2-hero-inner { min-height: 720px; position: relative; z-index: 2; display: flex; align-items: center; padding-top: 30px; padding-bottom: 44px; }
