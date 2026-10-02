@@ -22,6 +22,7 @@ export default function HomePage() {
         <div className="home-hero-shade" />
         <div className="hero-grid-lines" />
         <div className="page-container home-hero-container">
+          <Link href="/home-2" className="home-version-switch"><span>01</span> Explore alternate homepage <ArrowUpRight size={14} /></Link>
           <div className="hero-copy">
             <div className="hero-eyebrow"><span className="live-dot" /> U.S. TO JAMAICA · SHIPPING MADE EASY</div>
             <h1><span>SHIP FUSION</span><em>JAMAICA</em></h1>
