@@ -1935,3 +1935,23 @@ a.contact-detail-card:hover { border-color: #c7dba3; transform: translateX(2px);
   .admin-status-transition { gap: 4px; }
   .admin-status-transition .admin-status-badge { font-size: 5.5px; }
 }
+
+/* Keep both customer and staff entry points visible in the shared site header */
+.header-actions .nav-login-admin { padding-left: 17px; border-left: 1px solid #e4e9ef; color: #5f7184; }
+.nav-login-admin svg { color: #78963e; }
+.mobile-nav-login-group { display: flex; align-items: center; gap: 14px; }
+.mobile-nav-login-group .nav-login { font-size: 10px; }
+@media (max-width: 860px) and (min-width: 721px) {
+  .header-inner { gap: 14px; }
+  .main-nav { gap: 10px; }
+  .nav-link { font-size: 10px; }
+  .header-actions { gap: 8px; }
+  .header-actions .nav-login { font-size: 10px; }
+  .header-actions .nav-login-admin { padding-left: 9px; }
+  .header-actions .button { padding-right: 11px; padding-left: 11px; }
+}
+@media (max-width: 400px) {
+  .mobile-nav-actions { align-items: stretch; flex-direction: column; gap: 12px; }
+  .mobile-nav-login-group { justify-content: space-between; }
+  .mobile-nav-actions .button { width: 100%; }
+}

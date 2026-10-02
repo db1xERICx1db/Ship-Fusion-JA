@@ -42,12 +42,16 @@ export function SiteHeader() {
             </Link>
           ))}
           <div className="mobile-nav-actions">
-            <Link className="nav-login" href="/dashboard" onClick={() => setMenuOpen(false)}>Customer login <ArrowUpRight size={15} /></Link>
+            <div className="mobile-nav-login-group">
+              <Link className="nav-login" href="/dashboard" onClick={() => setMenuOpen(false)}>Customer login <ArrowUpRight size={15} /></Link>
+              <Link className="nav-login nav-login-admin" href="/admin/login" onClick={() => setMenuOpen(false)}>Admin login <ArrowUpRight size={15} /></Link>
+            </div>
             <Link className="button button-lime button-nav-quote" href="/quote" onClick={() => setMenuOpen(false)}>Get a quote <ArrowUpRight size={16} /></Link>
           </div>
         </nav>
         <div className="header-actions">
           <Link className="nav-login" href="/dashboard">Login <ArrowUpRight size={15} /></Link>
+          <Link className="nav-login nav-login-admin" href="/admin/login">Admin login <ArrowUpRight size={15} /></Link>
           <Link className="button button-lime button-nav-quote" href="/quote">Get a quote <ArrowUpRight size={16} /></Link>
         </div>
         <button className="menu-toggle" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
