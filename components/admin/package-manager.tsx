@@ -14,6 +14,7 @@ import {
   FilterX,
   MapPin,
   PackageCheck,
+  Plus,
   Search,
   ShieldCheck,
   X,
@@ -46,6 +47,7 @@ export function PackageManager() {
   const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -79,7 +81,7 @@ export function PackageManager() {
 
   return (
     <div className="admin-page admin-packages-page">
-      <div className="admin-page-heading"><div><div className="admin-eyebrow"><span /> SHIPPING OPERATIONS <i>·</i> PACKAGE CONTROL</div><h1>Packages<span>.</span></h1><p>Search, review, and update every customer shipment.</p></div><div className="admin-heading-stat"><span><Box size={15} /> PACKAGE RECORDS</span><strong>{database.packages.length}<small> total <i>·</i> {activeCount} active</small></strong></div></div>
+      <div className="admin-page-heading"><div><div className="admin-eyebrow"><span /> SHIPPING OPERATIONS <i>·</i> PACKAGE CONTROL</div><h1>Packages<span>.</span></h1><p>Search, review, and update every customer shipment.</p></div><div className="admin-heading-actions"><button type="button" className="admin-primary-button" onClick={() => setAddDialogOpen(true)}><Plus size={15} /> Add package</button><div className="admin-heading-stat"><span><Box size={15} /> PACKAGE RECORDS</span><strong>{database.packages.length}<small> total <i>·</i> {activeCount} active</small></strong></div></div></div>
       <div className="admin-package-notice"><span><ShieldCheck size={16} /></span><p><strong>Every status change is recorded.</strong> A status update adds a separate tracking-history entry with the previous value, new value, timestamp, admin, and note.</p><Link href="/admin/activity">View audit log <ArrowUpRight size={14} /></Link></div>
 
       <section className="admin-panel admin-package-table-panel">
@@ -114,6 +116,111 @@ export function PackageManager() {
       </section>
       <div className="admin-package-page-footer"><span><Clock3 size={14} /> Customer-visible and internal notes are stored separately.</span><Link href="/admin/customers">Go to customer accounts <ArrowRight size={14} /></Link></div>
       {selectedPackage && <PackageDetailsDialog key={selectedPackage.id} item={selectedPackage} onClose={() => setSelectedId(null)} />}
+      {addDialogOpen && <AddPackageDialog onClose={() => setAddDialogOpen(false)} onCreated={(packageId) => { setAddDialogOpen(false); setSelectedId(packageId); }} />}
+    </div>
+  );
+}
+
+type AddPackageDialogProps = { onClose: () => void; onCreated: (packageId: string) => void };
+
+const defaultAddPackageValues = {
+  customerId: "",
+  description: "",
+  method: "Air Freight" as ShippingMethod,
+  dateReceived: new Date().toISOString().slice(0, 10),
+  weight: "",
+  dimensions: "",
+  origin: "Miami, FL",
+  destination: "Kingston, Jamaica",
+  status: "Received" as PackageStatus,
+  estimatedDelivery: "",
+  shippingPrice: "0",
+  customsFees: "0",
+  additionalFees: "0",
+  amountPaid: "0",
+  declaredValue: "0",
+  customerVisibleNotes: "",
+  internalNotes: "",
+};
+
+function AddPackageDialog({ onClose, onCreated }: AddPackageDialogProps) {
+  const { database, addPackage } = useAdminData();
+  const [values, setValues] = useState(defaultAddPackageValues);
+  const [error, setError] = useState("");
+
+  function setField<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
+    setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  const selectedCustomer = database.customers.find((customer) => customer.id === values.customerId);
+  const shippingPrice = Number(values.shippingPrice);
+  const customsFees = Number(values.customsFees);
+  const additionalFees = Number(values.additionalFees);
+  const amountPaid = Number(values.amountPaid);
+  const declaredValue = Number(values.declaredValue);
+  const totalCharges = [shippingPrice, customsFees, additionalFees].every(Number.isFinite) ? shippingPrice + customsFees + additionalFees : 0;
+  const outstanding = Math.max(totalCharges - (Number.isFinite(amountPaid) ? amountPaid : 0), 0);
+
+  function submitPackage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!values.customerId) { setError("Select the customer this package belongs to."); return; }
+    if (!values.description.trim() || !values.origin.trim() || !values.destination.trim()) { setError("Add a package description, origin, and destination before creating the package."); return; }
+    if ([shippingPrice, customsFees, additionalFees, amountPaid, declaredValue].some((value) => !Number.isFinite(value) || value < 0)) { setError("Amounts must be valid numbers of $0.00 or more."); return; }
+    if (amountPaid > totalCharges) { setError("The initial payment cannot be greater than the package total."); return; }
+
+    const createdId = addPackage({
+      customerId: values.customerId,
+      description: values.description,
+      method: values.method,
+      dateReceived: values.dateReceived || null,
+      weight: values.weight,
+      dimensions: values.dimensions,
+      origin: values.origin,
+      destination: values.destination,
+      status: values.status,
+      estimatedDelivery: values.estimatedDelivery || null,
+      shippingPrice,
+      customsFees,
+      additionalFees,
+      amountPaid,
+      declaredValue,
+      customerVisibleNotes: values.customerVisibleNotes,
+      internalNotes: values.internalNotes,
+    });
+    if (createdId) onCreated(createdId);
+    else setError("Unable to create the package. Check the required fields and try again.");
+  }
+
+  return (
+    <div className="admin-modal-backdrop admin-package-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="admin-modal admin-package-details-modal admin-add-package-modal" role="dialog" aria-modal="true" aria-labelledby="add-package-title">
+        <div className="admin-package-modal-header"><span className="admin-package-modal-icon"><Plus size={19} /></span><div><span className="admin-section-kicker">NEW PACKAGE</span><h2 id="add-package-title">Add package</h2><p>Create a shipment, post initial charges, and open the new tracking record.</p></div><button type="button" className="admin-modal-close" onClick={onClose} aria-label="Close add package"><X size={18} /></button></div>
+        <div className="admin-package-modal-content">
+          <form className="admin-package-edit-form admin-add-package-form" onSubmit={submitPackage}>
+            <div className="admin-package-section-title"><span><PackageCheck size={15} /></span><div><strong>Package basics</strong><small>Select the customer and enter the shipment details.</small></div></div>
+            <div className="admin-package-edit-grid">
+              <label className="admin-edit-full">Customer<select value={values.customerId} onChange={(event) => setField("customerId", event.target.value)} required><option value="">Select customer…</option>{database.customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · #{customer.accountNumber} · {customer.phone}</option>)}</select></label>
+              <label className="admin-edit-full">Package description<input value={values.description} onChange={(event) => setField("description", event.target.value)} placeholder="e.g. Electronics package" required /></label>
+              <label>Shipping method<select value={values.method} onChange={(event) => setField("method", event.target.value as ShippingMethod)}>{SHIPPING_METHODS.map((method) => <option key={method}>{method}</option>)}</select></label>
+              <label>Status<select value={values.status} onChange={(event) => setField("status", event.target.value as PackageStatus)}>{PACKAGE_STATUSES.map((status) => <option value={status} key={status}>{status}</option>)}</select></label>
+              <label>Date received<input type="date" value={values.dateReceived} onChange={(event) => setField("dateReceived", event.target.value)} /></label>
+              <label>Estimated delivery<input type="date" value={values.estimatedDelivery} onChange={(event) => setField("estimatedDelivery", event.target.value)} /></label>
+              <label>Weight<input value={values.weight} onChange={(event) => setField("weight", event.target.value)} placeholder="e.g. 4.5 lb" /></label>
+              <label>Dimensions<input value={values.dimensions} onChange={(event) => setField("dimensions", event.target.value)} placeholder="L × W × H in" /></label>
+              <label>Origin<input value={values.origin} onChange={(event) => setField("origin", event.target.value)} required /></label>
+              <label>Destination<input value={values.destination} onChange={(event) => setField("destination", event.target.value)} required /></label>
+            </div>
+
+            <div className="admin-package-section-title admin-package-section-cost"><span><CircleDollarSign size={15} /></span><div><strong>Charges and payment</strong><small>Charges are posted to the customer ledger when the package is created.</small></div></div>
+            <div className="admin-package-edit-grid admin-package-cost-grid"><label>Shipping price<input type="number" min="0" step="0.01" required value={values.shippingPrice} onChange={(event) => setField("shippingPrice", event.target.value)} /></label><label>Customs fees<input type="number" min="0" step="0.01" required value={values.customsFees} onChange={(event) => setField("customsFees", event.target.value)} /></label><label>Additional fees<input type="number" min="0" step="0.01" required value={values.additionalFees} onChange={(event) => setField("additionalFees", event.target.value)} /></label><label>Amount paid<input type="number" min="0" step="0.01" required value={values.amountPaid} onChange={(event) => setField("amountPaid", event.target.value)} /></label><label>Declared value<input type="number" min="0" step="0.01" required value={values.declaredValue} onChange={(event) => setField("declaredValue", event.target.value)} /></label></div>
+            <div className="admin-add-package-summary"><div><span>Package total</span><strong>{formatUsd(totalCharges)}</strong></div><div><span>Initial payment</span><strong>{formatUsd(Number.isFinite(amountPaid) ? amountPaid : 0)}</strong></div><div><span>Outstanding</span><strong className={outstanding > 0 ? "admin-table-balance-due" : "admin-table-balance-clear"}>{formatUsd(outstanding)}</strong></div>{selectedCustomer && <div><span>Customer</span><strong>{selectedCustomer.name}</strong></div>}</div>
+
+            <div className="admin-note-separation"><div className="admin-package-section-title"><span><ShieldCheck size={15} /></span><div><strong>Notes & visibility</strong><small>Add public customer notes and private internal context.</small></div></div><label className="admin-customer-note-field">Customer-visible notes<textarea rows={3} value={values.customerVisibleNotes} onChange={(event) => setField("customerVisibleNotes", event.target.value)} placeholder="Share a useful package update…" /></label><label className="admin-internal-note-field">Internal admin notes <small>PRIVATE · not shown to customers</small><textarea rows={3} value={values.internalNotes} onChange={(event) => setField("internalNotes", event.target.value)} placeholder="Private operations notes…" /></label></div>
+            {error && <p className="admin-form-error" role="alert">{error}</p>}
+            <div className="admin-package-form-footer"><span>New packages receive the next available SFJ tracking number.</span><div className="admin-add-package-actions"><button type="button" className="admin-secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="admin-primary-button"><Plus size={14} /> Create package</button></div></div>
+          </form>
+        </div>
+      </section>
     </div>
   );
 }

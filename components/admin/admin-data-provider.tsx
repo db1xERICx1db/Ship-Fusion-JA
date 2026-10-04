@@ -33,6 +33,27 @@ type EditablePackageFields = Pick<
   | "customerVisibleNotes"
 >;
 
+type AddPackageInput = Pick<
+  AdminPackage,
+  | "customerId"
+  | "description"
+  | "method"
+  | "dateReceived"
+  | "weight"
+  | "dimensions"
+  | "origin"
+  | "destination"
+  | "status"
+  | "estimatedDelivery"
+  | "shippingPrice"
+  | "customsFees"
+  | "additionalFees"
+  | "amountPaid"
+  | "declaredValue"
+  | "customerVisibleNotes"
+  | "internalNotes"
+>;
+
 type AddBalanceAdjustmentInput = {
   customerId: string;
   type: AdjustmentType;
@@ -49,6 +70,7 @@ type AdminDataContextValue = {
   ready: boolean;
   changePackageStatus: (packageId: string, newStatus: PackageStatus, note: string) => void;
   updatePackage: (packageId: string, fields: EditablePackageFields) => void;
+  addPackage: (input: AddPackageInput) => string | null;
   addBalanceAdjustment: (input: AddBalanceAdjustmentInput) => void;
 };
 
@@ -190,6 +212,130 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         };
       });
     },
+    addPackage(input) {
+      const charges = roundCurrency(input.shippingPrice + input.customsFees + input.additionalFees);
+      const canCreate = hasAdminPermission(DEMO_ADMIN, "packages:write")
+        && Boolean(database.customers.find((entry) => entry.id === input.customerId))
+        && Boolean(input.description.trim())
+        && Boolean(input.origin.trim())
+        && Boolean(input.destination.trim())
+        && [input.shippingPrice, input.customsFees, input.additionalFees, input.amountPaid, input.declaredValue].every((value) => Number.isFinite(value) && value >= 0)
+        && input.amountPaid <= charges;
+      if (!canCreate) return null;
+
+      const packageId = createTrackingId(database);
+      setDatabase((current) => {
+        const customer = current.customers.find((entry) => entry.id === input.customerId);
+        if (!customer || current.packages.some((entry) => entry.id === packageId)) return current;
+
+        const occurredAt = new Date().toISOString();
+        const packageRecord: AdminPackage = {
+          ...input,
+          id: packageId,
+          description: input.description.trim(),
+          weight: input.weight.trim() || "—",
+          dimensions: input.dimensions.trim() || "—",
+          origin: input.origin.trim(),
+          destination: input.destination.trim(),
+          dateReceived: input.dateReceived || null,
+          estimatedDelivery: input.estimatedDelivery || null,
+          customerVisibleNotes: input.customerVisibleNotes.trim(),
+          internalNotes: input.internalNotes.trim(),
+          shippingPrice: roundCurrency(input.shippingPrice),
+          customsFees: roundCurrency(input.customsFees),
+          additionalFees: roundCurrency(input.additionalFees),
+          amountPaid: roundCurrency(input.amountPaid),
+          declaredValue: roundCurrency(input.declaredValue),
+          lastUpdated: occurredAt,
+        };
+        const statusEntry = {
+          id: createId("status"),
+          packageId,
+          previousStatus: null,
+          newStatus: input.status,
+          changedAt: occurredAt,
+          adminId: DEMO_ADMIN.id,
+          adminName: DEMO_ADMIN.name,
+          note: "Package created in the admin console.",
+        };
+        const transactions = [
+          input.shippingPrice > 0 ? {
+            id: createId("txn"),
+            customerId: input.customerId,
+            type: "Charge" as const,
+            amount: roundCurrency(input.shippingPrice),
+            description: `Shipping charge · ${packageId}`,
+            adminNote: `${input.method} shipping charge recorded with package creation.`,
+            occurredAt,
+            adminId: DEMO_ADMIN.id,
+            adminName: DEMO_ADMIN.name,
+            packageId,
+          } : null,
+          input.customsFees + input.additionalFees > 0 ? {
+            id: createId("txn"),
+            customerId: input.customerId,
+            type: "Fee" as const,
+            amount: roundCurrency(input.customsFees + input.additionalFees),
+            description: `Customs and handling fees · ${packageId}`,
+            adminNote: `Customs ${formatBalance(input.customsFees, false)} · additional ${formatBalance(input.additionalFees, false)}`,
+            occurredAt,
+            adminId: DEMO_ADMIN.id,
+            adminName: DEMO_ADMIN.name,
+            packageId,
+          } : null,
+          input.amountPaid > 0 ? {
+            id: createId("txn"),
+            customerId: input.customerId,
+            type: "Payment" as const,
+            amount: -roundCurrency(input.amountPaid),
+            description: `Payment received · ${packageId}`,
+            adminNote: "Initial payment recorded with package creation.",
+            occurredAt,
+            adminId: DEMO_ADMIN.id,
+            adminName: DEMO_ADMIN.name,
+            packageId,
+            paymentId: createId("payment"),
+          } : null,
+        ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+        const paymentTransaction = transactions.find((entry) => entry.type === "Payment");
+        const payment = paymentTransaction ? {
+          id: paymentTransaction.paymentId!,
+          customerId: input.customerId,
+          amount: roundCurrency(input.amountPaid),
+          method: "Admin recorded",
+          reference: `SFJ-${paymentTransaction.paymentId!.toUpperCase()}`,
+          status: "Completed" as const,
+          paidAt: occurredAt,
+          recordedBy: DEMO_ADMIN.name,
+          note: `Initial payment for ${packageId}`,
+          packageId,
+        } : null;
+        const auditEntry = {
+          id: createId("audit"),
+          adminId: DEMO_ADMIN.id,
+          adminName: DEMO_ADMIN.name,
+          action: "created package",
+          objectType: "package" as const,
+          objectId: packageId,
+          packageId,
+          customerId: input.customerId,
+          previousValue: "No package record",
+          newValue: summarizePackage(packageRecord),
+          occurredAt,
+          note: `Package created for ${customer.name}.`,
+        };
+
+        return {
+          ...current,
+          packages: [packageRecord, ...current.packages],
+          packageStatusHistory: [statusEntry, ...current.packageStatusHistory],
+          balanceTransactions: [...transactions, ...current.balanceTransactions],
+          payments: payment ? [payment, ...current.payments] : current.payments,
+          adminAuditLogs: [auditEntry, ...current.adminAuditLogs],
+        };
+      });
+      return packageId;
+    },
     addBalanceAdjustment(input) {
       setDatabase((current) => {
         if (!hasAdminPermission(DEMO_ADMIN, "balances:write")) return current;
@@ -277,6 +423,22 @@ function formatBalance(amount: number, includeSign = true): string {
   const abs = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Math.abs(amount));
   if (!includeSign) return abs;
   return amount > 0 ? `+$${abs.replace("$", "")}` : amount < 0 ? `−${abs}` : abs;
+}
+
+function createTrackingId(database: AdminDatabase): string {
+  const year = new Date().getFullYear();
+  const existingNumbers = database.packages
+    .map((item) => item.id.match(new RegExp(`^SFJ-${year}-(\\d+)$`))?.[1])
+    .filter((value): value is string => Boolean(value))
+    .map((value) => Number(value));
+  const nextNumber = Math.max(10000, ...existingNumbers) + 1;
+  let candidate = `SFJ-${year}-${nextNumber}`;
+  let increment = 1;
+  while (database.packages.some((item) => item.id === candidate)) {
+    candidate = `SFJ-${year}-${nextNumber + increment}`;
+    increment += 1;
+  }
+  return candidate;
 }
 
 function summarizePackage(item: AdminPackage): string {
