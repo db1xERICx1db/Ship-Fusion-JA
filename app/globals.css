@@ -1700,6 +1700,22 @@ a.contact-detail-card:hover { border-color: #c7dba3; transform: translateX(2px);
 .admin-confirm-audit-note { display: flex; align-items: flex-start; gap: 5px; padding-top: 10px; margin-top: 10px; color: #8c9778; border-top: 1px solid #eff1eb; font-size: 11px; line-height: 1.45; }
 .admin-confirm-audit-note svg { flex: 0 0 auto; color: #7e9742; }
 
+.admin-add-package-modal { width: min(960px,100%); height: auto; max-height: min(94vh,900px); }
+.admin-add-package-form { max-width: 900px; margin: 0 auto; border: 1px solid #e3e9ee; border-radius: 8px; background: #fff; }
+.admin-add-package-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; padding: 10px; margin-top: 10px; border: 1px solid #e7ecdf; border-radius: 6px; background: #fbfcf8; }
+.admin-add-package-summary > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.admin-add-package-summary span { color: #879377; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.admin-add-package-summary strong { overflow: hidden; color: #31465b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.admin-add-package-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+@media (max-width: 760px) {
+  .admin-add-package-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .admin-add-package-actions { width: 100%; }
+  .admin-add-package-actions > button { flex: 1; }
+}
+@media (max-width: 520px) {
+  .admin-add-package-summary { grid-template-columns: 1fr; }
+}
+
 /* Separate demo admin login */
 .admin-login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0,1.03fr) minmax(440px,.97fr); color: var(--admin-ink); background: #fff; }
 .admin-login-brand-panel { min-height: 100vh; position: relative; display: flex; flex-direction: column; overflow: hidden; padding: clamp(29px,4vw,58px) clamp(32px,6vw,86px) 23px; color: #fff; background: radial-gradient(ellipse at 80% 80%,rgba(26,65,96,.77),transparent 43%),linear-gradient(137deg,#061831 0%,#0b2546 63%,#0e2e4e 100%); isolation: isolate; }
